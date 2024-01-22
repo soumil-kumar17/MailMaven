@@ -12,8 +12,23 @@ serde_yaml = "0.9.30"
 sqlx = {version = "0.7.3", default-features = false, features = ["postgres", "runtime-tokio-rustls", "macros","uuid", "chrono", "migrate"]}
 uuid = { version = "1.7.0", features = ["v4"] }
 chrono = "0.4.31"
-tokio = {"version"= "1.35.1", features=["full"]}
+tokio = {"version"= "1.35.1", features=["macros", "rt-multi-thread"]}
 tracing = {version = "0.1.40", features = ["log"]}
 tracing-subscriber = {version = "0.3.18", features = ["env-filter", "registry"]}
 tracing-bunyan-formatter = "0.3.9"
 tracing-log = "0.2.0"
+secrecy = {version = "0.8.0", features = ["serde"]}
+tracing-actix-web = "0.7.9"
+unicode-segmentation = "1.10.1"
+validator = "0.16.1"
+reqwest = {version = "0.11.23", default-features = false, features = ["json", "rustls-tls"]}
+
+
+[dev-dependencies]
+claim = "0.5.0"
+fake = "2.9.2"
+rand = "0.8.5"
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"
+tokio = {version= "1.35.1", features=["rt", "macros"]}
+wiremock = "0.5.22"

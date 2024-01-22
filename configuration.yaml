@@ -1,7 +1,12 @@
-application_port: 8000
+app_settings:
+  port: 8000
+  host: "127.0.0.1"
 database:
   host: "127.0.0.1"
   port: 5432
   username: "postgres"
   password: "mh12dc420"
   name: "newsletter"
+email_client:
+  base_url: "localhost"
+  sender_email: "dummy@iiit-bh.ac.in"

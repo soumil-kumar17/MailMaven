@@ -1,5 +1,5 @@
-use email_newsletter::telemetry::{get_subscriber, init_subscriber};
-use email_newsletter::{config, startup};
+use email_newsletter::{config, email_client::EmailClient, startup::run, telemetry::{get_subscriber, init_subscriber}};
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use std::net::TcpListener;
 use tracing_log::LogTracer;
@@ -13,14 +13,27 @@ async fn main() -> std::io::Result<()> {
 
     let configuration = config::get_configuration();
 
-    let conn_pool = PgPool::connect(&configuration.database.connection_string())
-        .await
-        .expect("Failed to connect to Postgres.");
+    let conn_pool =
+        PgPool::connect_lazy(&configuration.database.connection_string().expose_secret())
+            .expect("Failed to connect to Postgres.");
 
-    let address = format!("127.0.0.1:{}", configuration.application_port);
+    let address = format!(
+        "{}:{}",
+        configuration.app_settings.host, configuration.app_settings.port
+    );
+
+    let sender_email = configuration
+        .email_client
+        .sender()
+        .expect("Invalid sender email address.");
+
+    let email_client = EmailClient::new(
+        configuration.email_client.base_url,
+        sender_email,
+    );
 
     let listener = TcpListener::bind(address)?;
 
-    startup::run(listener, conn_pool)?.await?;
+    run(listener, conn_pool, email_client)?.await?;
     Ok(())
 }

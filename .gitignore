@@ -1,1 +1,4 @@
 /target
+/scripts
+/configuration.yaml
+/.env
