@@ -1,4 +1,9 @@
-use email_newsletter::{config, email_client::EmailClient, startup::run, telemetry::{get_subscriber, init_subscriber}};
+use email_newsletter::{
+    config,
+    email_client::EmailClient,
+    startup::run,
+    telemetry::{get_subscriber, init_subscriber},
+};
 use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use std::net::TcpListener;

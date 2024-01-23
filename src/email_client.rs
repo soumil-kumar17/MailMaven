@@ -20,7 +20,11 @@ struct SendEmailRequest<'a> {
 }
 
 impl EmailClient {
-    pub fn new(base_url: String, sender: SubscriberEmail, authorization_token: secrecy::Secret<String>) -> Self {
+    pub fn new(
+        base_url: String,
+        sender: SubscriberEmail,
+        authorization_token: secrecy::Secret<String>,
+    ) -> Self {
         Self {
             sender,
             http_client: reqwest::Client::new(),
@@ -34,7 +38,7 @@ impl EmailClient {
         recipient: SubscriberEmail,
         subject: &str,
         html_content: &str,
-        text_content: &str
+        text_content: &str,
     ) -> Result<(), reqwest::Error> {
         let url = format!("{}/email", self.base_url);
         let request_body = SendEmailRequest {
@@ -44,9 +48,13 @@ impl EmailClient {
             html_body: html_content,
             text_body: text_content,
         };
-        let _builder = self.http_client
+        let _builder = self
+            .http_client
             .post(&url)
-            .header("X-Postmark-Server-Token", self.authorization_token.expose_secret())
+            .header(
+                "X-Postmark-Server-Token",
+                self.authorization_token.expose_secret(),
+            )
             .json(&request_body)
             .send()
             .await?;
@@ -58,11 +66,14 @@ impl EmailClient {
 mod tests {
     use crate::domain::SubscriberEmail;
     use crate::email_client::EmailClient;
-    use fake::faker::{internet::en::SafeEmail, lorem::en::{Paragraph, Sentence}};
+    use fake::faker::{
+        internet::en::SafeEmail,
+        lorem::en::{Paragraph, Sentence},
+    };
     use fake::{Fake, Faker};
     use secrecy::Secret;
-    use wiremock::matchers::{header, header_exists, path, method};
-    use wiremock::{Mock, MockServer, ResponseTemplate, Request};
+    use wiremock::matchers::{header, header_exists, method, path};
+    use wiremock::{Mock, MockServer, Request, ResponseTemplate};
 
     struct SendEmailBodyMatcher;
 
@@ -75,11 +86,11 @@ mod tests {
                     && body.get("Subject").is_some()
                     && body.get("HtmlBody").is_some()
                     && body.get("TextBody").is_some()
-        } else {
-            false
+            } else {
+                false
+            }
         }
     }
-}
 
     #[tokio::test]
     async fn send_email_sends_expected_result() {
