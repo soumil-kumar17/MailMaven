@@ -10,3 +10,4 @@ database:
 email_client:
   base_url: "localhost"
   sender_email: "dummy@iiit-bh.ac.in"
+  authorization_token: "dummy_token"
