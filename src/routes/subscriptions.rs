@@ -3,7 +3,7 @@ use crate::{
     email_client::EmailClient,
     startup::ApplicationBaseUrl,
 };
-use actix_web::{web, HttpResponse, ResponseError, http::StatusCode};
+use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use sqlx::{types::chrono::Utc, PgPool, Transaction};
 
@@ -46,55 +46,24 @@ impl std::fmt::Debug for TokenError {
     }
 }
 
-#[derive(Debug)]
+#[derive(thiserror::Error)]
 pub enum SubscribeError {
+    #[error("{0}")]
     ValidationError(String),
-    DatabaseError(sqlx::Error),
-    TokenError(TokenError),
-    SendEmailError(reqwest::Error),
+    #[error("{1}")]
+    UnexpectedError(#[source] Box<dyn std::error::Error>, String),
 }
 
-impl std::fmt::Display for SubscribeError {
+impl std::fmt::Debug for SubscribeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SubscribeError::ValidationError(msg) => write!(f, "{}", msg),
-            SubscribeError::DatabaseError(_) => write!(f, "A database error occured."),
-            SubscribeError::TokenError(_) => write!(f, "A token error occured."),
-            SubscribeError::SendEmailError(_) => write!(f, "A email error occured."),
-        }
-    }
-}
-
-impl From<reqwest::Error> for SubscribeError {
-    fn from(error: reqwest::Error) -> Self {
-        Self::SendEmailError(error)
-    }
-}
-
-impl From<sqlx::Error> for SubscribeError {
-    fn from(error: sqlx::Error) -> Self {
-        Self::DatabaseError(error)
-    }
-}
-
-impl From<TokenError> for SubscribeError {
-    fn from(error: TokenError) -> Self {
-        Self::TokenError(error)
-    }
-}
-
-impl From<String> for SubscribeError {
-    fn from(error: String) -> Self {
-        Self::ValidationError(error)
+        error_chain_fmt(self, f)
     }
 }
 
 impl ResponseError for SubscribeError {
     fn status_code(&self) -> StatusCode {
         match self {
-            SubscribeError::DatabaseError(_)
-            | SubscribeError::TokenError(_)
-            | SubscribeError::SendEmailError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            SubscribeError::UnexpectedError(_, _) => StatusCode::INTERNAL_SERVER_ERROR,
             SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
         }
     }
@@ -114,11 +83,25 @@ pub async fn subscribe(
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseUrl>,
 ) -> Result<HttpResponse, SubscribeError> {
-    let new_subscriber = form.0.try_into()?;
+    let new_subscriber = form.0.try_into().map_err(SubscribeError::ValidationError)?;
 
-    let mut transaction = conn_pool.begin().await?;
+    let mut transaction = conn_pool.begin()
+        .await
+        .map_err(|e| {
+        SubscribeError::UnexpectedError(
+            Box::new(e),
+            "Failed to acquire a Postgres connection from pool.".into(),
+        )
+    })?;
 
-    let subscriber_id = insert_subscriber(&mut transaction, &conn_pool, &new_subscriber).await?;
+    let subscriber_id = insert_subscriber(&mut transaction, &conn_pool, &new_subscriber)
+        .await
+        .map_err(|e| {
+            SubscribeError::UnexpectedError(
+                Box::new(e),
+                "Failed to insert new subscriber in the database.".into(),
+            )
+        })?;
 
     let subscription_token = generate_subscription_token();
     store_token(
@@ -127,9 +110,17 @@ pub async fn subscribe(
         subscriber_id,
         &subscription_token,
     )
-    .await?;
+    .await
+    .map_err(|e| {
+        SubscribeError::UnexpectedError(
+            Box::new(e),
+            "Failed to store subscription token for a new subscriber.".into(),
+        )
+    })?;
 
-    transaction.commit().await?;
+    transaction.commit().await.map_err(|e| {
+        SubscribeError::UnexpectedError(Box::new(e), "Failed to commit SQL transaction.".into())
+    })?;
 
     send_confirmation_email(
         &email_client,
@@ -137,7 +128,13 @@ pub async fn subscribe(
         &base_url.0,
         &subscription_token,
     )
-    .await?;
+    .await
+    .map_err(|e| {
+        SubscribeError::UnexpectedError(
+            Box::new(e),
+            "Falied to send confirmation email to new subscriber.".into(),
+        )
+    })?;
 
     Ok(HttpResponse::Ok().finish())
 }
