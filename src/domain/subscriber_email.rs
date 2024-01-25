@@ -1,6 +1,6 @@
 use validator::validate_email;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SubscriberEmail(String);
 
 impl SubscriberEmail {
@@ -47,7 +47,6 @@ mod tests {
         let email = SafeEmail().fake();
         assert!(SubscriberEmail::parse_email(email).is_ok());
     }
-
     #[test]
     fn empty_string_is_rejected() {
         let email = "".to_string();

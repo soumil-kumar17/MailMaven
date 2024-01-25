@@ -31,8 +31,10 @@ pub struct DatabaseSettings {
 
 #[derive(serde::Deserialize)]
 pub struct AppSettings {
+    //#[serde(deserialize_with = "deserialize_num_from_string")]
     pub port: u16,
     pub host: String,
+    pub base_url: String,
 }
 
 #[derive(Debug)]

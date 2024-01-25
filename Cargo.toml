@@ -22,6 +22,7 @@ tracing-actix-web = "0.7.9"
 unicode-segmentation = "1.10.1"
 validator = "0.16.1"
 reqwest = {version = "0.11.23", default-features = false, features = ["json", "rustls-tls"]}
+rand = {version = "0.8.5", features = ["std_rng"]}
 
 
 [dev-dependencies]
