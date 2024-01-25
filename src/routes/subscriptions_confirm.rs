@@ -3,8 +3,6 @@ use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
 pub struct QueryParameters {
-    email: String,
-    name: String,
     subscription_token: String,
 }
 
