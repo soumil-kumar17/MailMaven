@@ -85,9 +85,7 @@ pub async fn subscribe(
 ) -> Result<HttpResponse, SubscribeError> {
     let new_subscriber = form.0.try_into().map_err(SubscribeError::ValidationError)?;
 
-    let mut transaction = conn_pool.begin()
-        .await
-        .map_err(|e| {
+    let mut transaction = conn_pool.begin().await.map_err(|e| {
         SubscribeError::UnexpectedError(
             Box::new(e),
             "Failed to acquire a Postgres connection from pool.".into(),
@@ -227,7 +225,7 @@ pub async fn store_token(
     Ok(())
 }
 
-fn error_chain_fmt(
+pub fn error_chain_fmt(
     e: &impl std::error::Error,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
