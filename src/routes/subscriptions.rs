@@ -6,7 +6,7 @@ use crate::{
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use anyhow::Context;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
-use sqlx::{types::chrono::Utc, PgPool};
+use sqlx::{types::chrono::Utc, PgPool, Postgres, Transaction};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -86,18 +86,18 @@ pub async fn subscribe(
 ) -> Result<HttpResponse, SubscribeError> {
     let new_subscriber = form.0.try_into().map_err(SubscribeError::ValidationError)?;
 
-    let mut transaction = conn_pool.begin() 
+    let mut transaction = conn_pool
+        .begin()
         .await
         .context("Failed to acquire a Postgres connection from the pool.")?;
 
-    // let subscriber_id = insert_subscriber(&mut transaction, &conn_pool, &new_subscriber)
-    let subscriber_id = insert_subscriber(&conn_pool, &new_subscriber)
+    let subscriber_id = insert_subscriber(&mut transaction, &conn_pool, &new_subscriber)
         .await
         .context("Failed to insert new subscriber in the database.")?;
 
     let subscription_token = generate_subscription_token();
     store_token(
-        //&mut transaction,
+        &mut transaction,
         &conn_pool,
         subscriber_id,
         &subscription_token,
@@ -105,7 +105,8 @@ pub async fn subscribe(
     .await
     .context("Failed to store subscription token in the database.")?;
 
-    transaction.commit()
+    transaction
+        .commit()
         .await
         .context("Failed to commit SQL transaction.")?;
 
@@ -126,7 +127,7 @@ pub async fn subscribe(
     skip(new_subscriber, conn_pool)
 )]
 pub async fn insert_subscriber(
-    //transaction: &mut Transaction<'_, Postgres>,
+    transaction: &mut Transaction<'_, Postgres>,
     conn_pool: &PgPool,
     new_subscriber: &NewSubscriber,
 ) -> Result<uuid::Uuid, sqlx::Error> {
@@ -192,7 +193,7 @@ fn generate_subscription_token() -> String {
 
 #[tracing::instrument(name = "Saving subscription token in the database", skip(conn_pool))]
 pub async fn store_token(
-    //transaction: &mut Transaction<'_, Postgres>,
+    transaction: &mut Transaction<'_, Postgres>,
     conn_pool: &PgPool,
     subscriber_id: uuid::Uuid,
     subscription_token: &str,
