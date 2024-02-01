@@ -1,7 +1,10 @@
 use crate::{
     config::Settings,
     email_client::EmailClient,
-    routes::{confirm, health_check, newsletter::publish_newsletter, subscriptions::subscribe},
+    routes::{
+        confirm, health_check, home, login, login_form, newsletter::publish_newsletter,
+        subscriptions::subscribe,
+    },
 };
 use actix_web::{dev::Server, web, App, HttpServer};
 use sqlx::{postgres::PgPoolOptions, PgPool};
@@ -72,6 +75,9 @@ fn run(
             .route("/subsrciptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
             .route("/newsletter", web::post().to(publish_newsletter))
+            .route("/", web::get().to(home))
+            .route("/login", web::get().to(login_form))
+            .route("/login", web::post().to(login))
             .app_data(email_client.clone())
             .app_data(conn_pool.clone())
             .app_data(base_url.clone())
