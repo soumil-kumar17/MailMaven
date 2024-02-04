@@ -6,7 +6,7 @@ use email_newsletter::{
 use tracing_log::LogTracer;
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> anyhow::Result<()> {
     LogTracer::init().expect("Failed to set logger.");
 
     let subscriber = get_subscriber("email_newsletter".into(), "info".into(), std::io::stdout);
