@@ -12,7 +12,6 @@ use actix_web::{
     web, HttpRequest, HttpResponse, ResponseError,
 };
 use anyhow::Context;
-
 use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]

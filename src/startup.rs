@@ -2,7 +2,8 @@ use crate::{
     config::Settings,
     email_client::EmailClient,
     routes::{
-        admin_dashboard, change_password, change_password_form, confirm, health_check, home, login, login_form, logout, newsletter::publish_newsletter, subscriptions::subscribe
+        admin_dashboard, change_password, change_password_form, confirm, health_check, home, login,
+        login_form, logout, newsletter::publish_newsletter, subscriptions::subscribe,
     },
 };
 use actix_session::{storage::RedisSessionStore, SessionMiddleware};
