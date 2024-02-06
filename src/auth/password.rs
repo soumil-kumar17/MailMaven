@@ -1,6 +1,6 @@
-use argon2::Params;
 use actix_web::http::header::HeaderMap;
 use anyhow::Context;
+use argon2::Params;
 use argon2::{
     password_hash::SaltString, Algorithm, Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
     Version,
@@ -131,9 +131,7 @@ pub async fn change_password(
     password: Secret<String>,
     pool: &PgPool,
 ) -> Result<(), anyhow::Error> {
-    let password_hash = spawn_blocking_with_tracing(
-        move || compute_password_hash(password)
-        )
+    let password_hash = spawn_blocking_with_tracing(move || compute_password_hash(password))
         .await
         .context("Failed to spawn blocking task.")??;
     sqlx::query!(

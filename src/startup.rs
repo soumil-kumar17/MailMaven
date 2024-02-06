@@ -1,19 +1,16 @@
 use crate::{
+    auth::reject_anonymous_users,
     config::Settings,
     email_client::EmailClient,
     routes::{
         admin_dashboard, change_password, change_password_form, confirm, health_check, home, login,
-        login_form, logout, newsletter::publish_newsletter, subscriptions::subscribe,
+        login_form, logout, publish_newsletter, subscriptions::subscribe,
     },
 };
-use actix_session::{storage::RedisSessionStore, SessionMiddleware};
-use actix_web::{
-    cookie::Key,
-    dev::Server,
-    web::{self, Data},
-    App, HttpServer,
-};
+//use actix_session::{storage::RedisSessionStore, SessionMiddleware};
+use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
+use actix_web_lab::middleware::from_fn;
 use secrecy::{ExposeSecret, Secret};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::TcpListener;
@@ -59,7 +56,7 @@ impl Application {
             email_client,
             config.app_settings.base_url,
             config.app_settings.hmac_secret,
-            config.redis_uri,
+            //config.redis_uri,
         )
         .await?;
         Ok(Self { port, server })
@@ -80,35 +77,37 @@ async fn run(
     email_client: EmailClient,
     base_url: String,
     hmac_secret: Secret<String>,
-    redis_uri: Secret<String>,
+    //redis_uri: Secret<String>,
 ) -> Result<Server, anyhow::Error> {
     let conn_pool = web::Data::new(conn_pool);
     let email_client = web::Data::new(email_client);
     let key = Key::from(hmac_secret.expose_secret().as_bytes());
     let msg_store = CookieMessageStore::builder(key.clone()).build();
     let msg_framework = FlashMessagesFramework::builder(msg_store).build();
-    let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
+    // let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
     let server = HttpServer::new(move || {
         App::new()
             .wrap(msg_framework.clone())
-            .wrap(SessionMiddleware::new(redis_store.clone(), key.clone()))
+            //.wrap(SessionMiddleware::new(redis_store.clone(), key.clone()))
             .wrap(TracingLogger::default())
-            .route("/health_check", web::get().to(health_check))
-            .route("/subsrciptions", web::post().to(subscribe))
-            .route("/subscriptions/confirm", web::get().to(confirm))
-            .route("/newsletter", web::post().to(publish_newsletter))
-            .route("/admin/dashboard", web::get().to(admin_dashboard))
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))
             .route("/login", web::post().to(login))
-            .route("/admin/password", web::get().to(change_password_form))
-            .route("/admin/password", web::post().to(change_password))
-            .route("/admin/logout", web::post().to(logout))
+            .route("/health_check", web::get().to(health_check))
+            .route("/newsletter", web::post().to(publish_newsletter)) // Add the missing function here
+            .route("/subsrciptions", web::post().to(subscribe))
+            .route("/subscriptions/confirm", web::get().to(confirm))
+            .service(
+                web::scope("/admin")
+                    .wrap(from_fn(reject_anonymous_users))
+                    .route("/dashboard", web::get().to(admin_dashboard))
+                    .route("/password", web::get().to(change_password_form))
+                    .route("/password", web::post().to(change_password))
+                    .route("/logout", web::post().to(logout)),
+            )
             .app_data(email_client.clone())
             .app_data(conn_pool.clone())
             .app_data(base_url.clone())
-            .app_data(Data::new(HmacSecretKey(hmac_secret.clone())))
-            .app_data(redis_uri.clone())
     })
     .listen(listener)?
     .run();

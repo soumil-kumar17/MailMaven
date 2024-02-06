@@ -17,6 +17,7 @@ pub async fn admin_dashboard(
             .insert_header((LOCATION, "/login"))
             .finish());
     };
+
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
         .body(format!(
@@ -49,5 +50,6 @@ pub async fn get_username(user_id: Uuid, pool: &PgPool) -> Result<String, anyhow
         .fetch_one(pool)
         .await
         .context("Failed to retrieve username from db.")?;
+
     Ok(row.username)
 }

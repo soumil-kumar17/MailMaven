@@ -1,5 +1,5 @@
 use crate::{
-    auth::{validate_credentials, AuthError, Credentials},
+    auth::password::{validate_credentials, AuthError, Credentials},
     routes::error_chain_fmt,
     session_state::TypedSession,
 };
