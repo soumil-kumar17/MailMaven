@@ -2,6 +2,7 @@ pub mod auth;
 pub mod config;
 pub mod domain;
 pub mod email_client;
+pub mod idempotency;
 pub mod routes;
 pub mod session_state;
 pub mod startup;
