@@ -91,19 +91,14 @@ pub async fn subscribe(
         .await
         .context("Failed to acquire a Postgres connection from the pool.")?;
 
-    let subscriber_id = insert_subscriber(&mut transaction, &conn_pool, &new_subscriber)
+    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
         .await
         .context("Failed to insert new subscriber in the database.")?;
 
     let subscription_token = generate_subscription_token();
-    store_token(
-        &mut transaction,
-        &conn_pool,
-        subscriber_id,
-        &subscription_token,
-    )
-    .await
-    .context("Failed to store subscription token in the database.")?;
+    store_token(&mut transaction, subscriber_id, &subscription_token)
+        .await
+        .context("Failed to store subscription token in the database.")?;
 
     transaction
         .commit()
@@ -124,11 +119,10 @@ pub async fn subscribe(
 
 #[tracing::instrument(
     name = "Saving new subscriber details in the database",
-    skip(new_subscriber, conn_pool)
+    skip(new_subscriber, transaction)
 )]
 pub async fn insert_subscriber(
     transaction: &mut Transaction<'_, Postgres>,
-    conn_pool: &PgPool,
     new_subscriber: &NewSubscriber,
 ) -> Result<uuid::Uuid, sqlx::Error> {
     let subscriber_id = uuid::Uuid::new_v4();
@@ -140,12 +134,9 @@ pub async fn insert_subscriber(
         new_subscriber.name.as_ref(),
         Utc::now()
     )
-    .execute(conn_pool)
-    .await
-    .map_err(|e| {
-        tracing::error!("Failed to execute query: {:#?}", e);
-        e
-    })?;
+    .execute(&mut **transaction)
+    .await?;
+
     Ok(subscriber_id)
 }
 
@@ -191,10 +182,9 @@ fn generate_subscription_token() -> String {
         .collect()
 }
 
-#[tracing::instrument(name = "Saving subscription token in the database", skip(conn_pool))]
+#[tracing::instrument(name = "Saving subscription token in the database", skip(transaction))]
 pub async fn store_token(
     transaction: &mut Transaction<'_, Postgres>,
-    conn_pool: &PgPool,
     subscriber_id: uuid::Uuid,
     subscription_token: &str,
 ) -> Result<(), TokenError> {
@@ -204,7 +194,7 @@ pub async fn store_token(
         subscription_token,
         subscriber_id
     )
-    .execute(conn_pool)
+    .execute(&mut **transaction)
     .await
     .map_err(|e| TokenError(e))?;
     Ok(())
