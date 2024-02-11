@@ -8,7 +8,12 @@ use crate::{
     },
 };
 //use actix_session::{storage::RedisSessionStore, SessionMiddleware};
-use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
+use actix_web::{
+    cookie::Key,
+    dev::Server,
+    web::{self, Data},
+    App, HttpServer,
+};
 use actix_web_flash_messages::{storage::CookieMessageStore, FlashMessagesFramework};
 use actix_web_lab::middleware::from_fn;
 use secrecy::{ExposeSecret, Secret};
@@ -108,6 +113,7 @@ async fn run(
             .app_data(email_client.clone())
             .app_data(conn_pool.clone())
             .app_data(base_url.clone())
+            .app_data(Data::new(HmacSecretKey(hmac_secret.clone())))
     })
     .listen(listener)?
     .run();

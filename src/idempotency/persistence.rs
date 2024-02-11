@@ -1,6 +1,8 @@
+use crate::issue_delivery_worker::PgTransaction;
+
 use super::IdempotencyKey;
 use actix_web::{body::to_bytes, http::StatusCode, HttpResponse};
-use sqlx::{postgres::PgHasArrayType, PgPool, Postgres, Transaction};
+use sqlx::{postgres::PgHasArrayType, PgPool};
 use uuid::Uuid;
 
 #[derive(Debug, sqlx::Type)]
@@ -17,7 +19,7 @@ impl PgHasArrayType for HeaderPairRecord {
 }
 
 pub enum NextAction {
-    StartProcessing(Transaction<'static, Postgres>),
+    StartProcessing(PgTransaction),
     ReturnSavedResponse(HttpResponse),
 }
 
@@ -58,7 +60,7 @@ pub async fn save_res(
     idempotency_key: &IdempotencyKey,
     user_id: Uuid,
     http_res: HttpResponse,
-    mut transaction: Transaction<'static, Postgres>,
+    mut transaction: PgTransaction,
 ) -> Result<HttpResponse, anyhow::Error> {
     let (resp_head, body) = http_res.into_parts();
     let body = to_bytes(body).await.map_err(|e| anyhow::anyhow!("{}", e))?;
